@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type TaskStatus = 'pending' | 'completed' | 'partial' | 'skipped';
+export type TaskUrgency = 'urgent' | 'not-urgent';
+export type TaskImportance = 'important' | 'not-important';
 
 export interface Task {
   id: string;
@@ -10,6 +12,8 @@ export interface Task {
   status: TaskStatus;
   date: string;
   notes?: string;
+  urgency: TaskUrgency;
+  importance: TaskImportance;
   createdAt: string;
   updatedAt: string;
 }
@@ -220,12 +224,14 @@ export const useProductivityStore = create<ProductivityState>()(
         const categories = get().categories;
 
         if (existingTasks.length === 0) {
-          const newTasks: Task[] = categories.map((cat) => ({
+          const newTasks: Task[] = categories.map((cat, index) => ({
             id: generateId(),
             name: cat.name,
             category: cat.id,
             status: 'pending' as TaskStatus,
             date,
+            urgency: index < 3 ? 'urgent' as TaskUrgency : 'not-urgent' as TaskUrgency,
+            importance: index % 2 === 0 ? 'important' as TaskImportance : 'not-important' as TaskImportance,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           }));

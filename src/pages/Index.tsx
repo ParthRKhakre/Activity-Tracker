@@ -8,6 +8,7 @@ import { MonthlyProgressChart } from '@/components/charts/MonthlyProgressChart';
 import { WeeklyTrendChart } from '@/components/charts/WeeklyTrendChart';
 import { CategoryBreakdown } from '@/components/charts/CategoryBreakdown';
 import { StreakCalendar } from '@/components/streaks/StreakCalendar';
+import { EisenhowerMatrix } from '@/components/eisenhower/EisenhowerMatrix';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -57,6 +58,7 @@ const Index = () => {
           </div>
         );
       case 'eisenhower':
+        return <EisenhowerMatrix />;
       case 'timeblock':
         return (
           <motion.div
@@ -71,7 +73,7 @@ const Index = () => {
               Coming Soon
             </h3>
             <p className="text-muted-foreground max-w-md mx-auto">
-              This productivity framework is under development. We're working hard to bring you powerful tools for better time management.
+              Time Blocking is under development. We're working hard to bring you powerful tools for better time management.
             </p>
           </motion.div>
         );
