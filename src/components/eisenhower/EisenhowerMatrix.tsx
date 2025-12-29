@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Zap, 
@@ -9,19 +9,35 @@ import {
   Minus, 
   X,
   ArrowUp,
-  ArrowRight
+  ArrowRight,
+  GripVertical
 } from 'lucide-react';
 import { Task, TaskStatus, TaskUrgency, TaskImportance, useProductivityStore } from '@/store/useProductivityStore';
 import { cn } from '@/lib/utils';
+
+type QuadrantType = 'do' | 'schedule' | 'delegate' | 'eliminate';
+
+interface QuadrantConfig {
+  urgency: TaskUrgency;
+  importance: TaskImportance;
+}
+
+const quadrantConfig: Record<QuadrantType, QuadrantConfig> = {
+  do: { urgency: 'urgent', importance: 'important' },
+  schedule: { urgency: 'not-urgent', importance: 'important' },
+  delegate: { urgency: 'urgent', importance: 'not-important' },
+  eliminate: { urgency: 'not-urgent', importance: 'not-important' },
+};
 
 interface QuadrantProps {
   title: string;
   subtitle: string;
   icon: React.ElementType;
   tasks: Task[];
-  quadrant: 'do' | 'schedule' | 'delegate' | 'eliminate';
-  onUpdateTask: (taskId: string, urgency: TaskUrgency, importance: TaskImportance) => void;
+  quadrant: QuadrantType;
   onUpdateStatus: (taskId: string, status: TaskStatus) => void;
+  onDrop: (taskId: string, quadrant: QuadrantType) => void;
+  draggedTask: string | null;
 }
 
 const quadrantStyles = {
@@ -30,39 +46,152 @@ const quadrantStyles = {
     border: 'border-danger/30',
     header: 'bg-danger/10 text-danger',
     accent: 'text-danger',
+    dropzone: 'border-danger/50 bg-danger/10',
   },
   schedule: {
     bg: 'bg-primary/5',
     border: 'border-primary/30',
     header: 'bg-primary/10 text-primary',
     accent: 'text-primary',
+    dropzone: 'border-primary/50 bg-primary/10',
   },
   delegate: {
     bg: 'bg-warning/5',
     border: 'border-warning/30',
     header: 'bg-warning/10 text-warning',
     accent: 'text-warning',
+    dropzone: 'border-warning/50 bg-warning/10',
   },
   eliminate: {
     bg: 'bg-muted/30',
     border: 'border-border',
     header: 'bg-muted text-muted-foreground',
     accent: 'text-muted-foreground',
+    dropzone: 'border-muted-foreground/50 bg-muted/50',
   },
 };
 
-const Quadrant = ({ title, subtitle, icon: Icon, tasks, quadrant, onUpdateStatus }: QuadrantProps) => {
-  const styles = quadrantStyles[quadrant];
+interface TaskItemProps {
+  task: Task;
+  index: number;
+  onUpdateStatus: (taskId: string, status: TaskStatus) => void;
+  isDragging: boolean;
+}
+
+const TaskItem = ({ task, index, onUpdateStatus, isDragging }: TaskItemProps) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('taskId', task.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <div
+        draggable
+        onDragStart={handleDragStart}
+        className={cn(
+          'p-3 rounded-lg border bg-card/50 group cursor-grab active:cursor-grabbing',
+          task.status === 'completed' && 'opacity-60',
+          isDragging && 'opacity-50 scale-95'
+        )}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            <GripVertical className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className={cn(
+              'text-sm font-medium flex-1',
+              task.status === 'completed' && 'line-through text-muted-foreground'
+            )}>
+              {task.name}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onUpdateStatus(task.id, 'completed')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                task.status === 'completed' 
+                  ? 'bg-success/20 text-success' 
+                  : 'hover:bg-success/20 hover:text-success text-muted-foreground'
+              )}
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onUpdateStatus(task.id, 'partial')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                task.status === 'partial' 
+                  ? 'bg-warning/20 text-warning' 
+                  : 'hover:bg-warning/20 hover:text-warning text-muted-foreground'
+              )}
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onUpdateStatus(task.id, 'skipped')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                task.status === 'skipped' 
+                  ? 'bg-danger/20 text-danger' 
+                  : 'hover:bg-danger/20 hover:text-danger text-muted-foreground'
+              )}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const Quadrant = ({ 
+  title, 
+  subtitle, 
+  icon: Icon, 
+  tasks, 
+  quadrant, 
+  onUpdateStatus,
+  onDrop,
+  draggedTask 
+}: QuadrantProps) => {
+  const styles = quadrantStyles[quadrant];
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const taskId = e.dataTransfer.getData('taskId');
+    if (taskId) {
+      onDrop(taskId, quadrant);
+    }
+  };
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       className={cn(
-        'rounded-xl border overflow-hidden flex flex-col',
+        'rounded-xl border overflow-hidden flex flex-col transition-all duration-200',
         styles.bg,
-        styles.border
+        styles.border,
+        isDragOver && styles.dropzone,
+        isDragOver && 'border-dashed border-2 scale-[1.02]'
       )}
     >
       {/* Header */}
@@ -80,75 +209,32 @@ const Quadrant = ({ title, subtitle, icon: Icon, tasks, quadrant, onUpdateStatus
       {/* Tasks */}
       <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[280px]">
         {tasks.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            No tasks in this quadrant
+          <div className={cn(
+            "text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg",
+            isDragOver ? 'border-current bg-current/5' : 'border-transparent'
+          )}>
+            {isDragOver ? 'Drop here' : 'Drag tasks here'}
           </div>
         ) : (
           tasks.map((task, index) => (
-            <motion.div
-              key={task.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={cn(
-                'p-3 rounded-lg border bg-card/50 group',
-                task.status === 'completed' && 'opacity-60'
-              )}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className={cn(
-                  'text-sm font-medium flex-1',
-                  task.status === 'completed' && 'line-through text-muted-foreground'
-                )}>
-                  {task.name}
-                </span>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => onUpdateStatus(task.id, 'completed')}
-                    className={cn(
-                      'p-1.5 rounded-md transition-colors',
-                      task.status === 'completed' 
-                        ? 'bg-success/20 text-success' 
-                        : 'hover:bg-success/20 hover:text-success text-muted-foreground'
-                    )}
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => onUpdateStatus(task.id, 'partial')}
-                    className={cn(
-                      'p-1.5 rounded-md transition-colors',
-                      task.status === 'partial' 
-                        ? 'bg-warning/20 text-warning' 
-                        : 'hover:bg-warning/20 hover:text-warning text-muted-foreground'
-                    )}
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => onUpdateStatus(task.id, 'skipped')}
-                    className={cn(
-                      'p-1.5 rounded-md transition-colors',
-                      task.status === 'skipped' 
-                        ? 'bg-danger/20 text-danger' 
-                        : 'hover:bg-danger/20 hover:text-danger text-muted-foreground'
-                    )}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+            <TaskItem 
+              key={task.id} 
+              task={task} 
+              index={index} 
+              onUpdateStatus={onUpdateStatus}
+              isDragging={draggedTask === task.id}
+            />
           ))
         )}
       </div>
-    </motion.div>
+    </div>
   );
 };
 
 export const EisenhowerMatrix = () => {
   const { currentDate, getTasksForDate, updateTaskStatus, updateTask } = useProductivityStore();
   const tasks = getTasksForDate(currentDate);
+  const [draggedTask, setDraggedTask] = useState<string | null>(null);
 
   const categorizedTasks = useMemo(() => {
     return {
@@ -159,12 +245,14 @@ export const EisenhowerMatrix = () => {
     };
   }, [tasks]);
 
-  const handleUpdateTask = (taskId: string, urgency: TaskUrgency, importance: TaskImportance) => {
-    updateTask(taskId, { urgency, importance });
-  };
-
   const handleUpdateStatus = (taskId: string, status: TaskStatus) => {
     updateTaskStatus(taskId, status);
+  };
+
+  const handleDrop = (taskId: string, quadrant: QuadrantType) => {
+    const config = quadrantConfig[quadrant];
+    updateTask(taskId, { urgency: config.urgency, importance: config.importance });
+    setDraggedTask(null);
   };
 
   return (
@@ -174,7 +262,7 @@ export const EisenhowerMatrix = () => {
         <div>
           <h2 className="text-2xl font-bold text-foreground">Eisenhower Matrix</h2>
           <p className="text-muted-foreground">
-            Prioritize tasks by urgency and importance
+            Drag tasks between quadrants to reprioritize
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -199,8 +287,9 @@ export const EisenhowerMatrix = () => {
             icon={Zap}
             tasks={categorizedTasks.do}
             quadrant="do"
-            onUpdateTask={handleUpdateTask}
             onUpdateStatus={handleUpdateStatus}
+            onDrop={handleDrop}
+            draggedTask={draggedTask}
           />
           <Quadrant
             title="Schedule"
@@ -208,8 +297,9 @@ export const EisenhowerMatrix = () => {
             icon={Calendar}
             tasks={categorizedTasks.schedule}
             quadrant="schedule"
-            onUpdateTask={handleUpdateTask}
             onUpdateStatus={handleUpdateStatus}
+            onDrop={handleDrop}
+            draggedTask={draggedTask}
           />
         </div>
         <Quadrant
@@ -218,8 +308,9 @@ export const EisenhowerMatrix = () => {
           icon={Users}
           tasks={categorizedTasks.delegate}
           quadrant="delegate"
-          onUpdateTask={handleUpdateTask}
           onUpdateStatus={handleUpdateStatus}
+          onDrop={handleDrop}
+          draggedTask={draggedTask}
         />
         <Quadrant
           title="Eliminate"
@@ -227,8 +318,9 @@ export const EisenhowerMatrix = () => {
           icon={Trash2}
           tasks={categorizedTasks.eliminate}
           quadrant="eliminate"
-          onUpdateTask={handleUpdateTask}
           onUpdateStatus={handleUpdateStatus}
+          onDrop={handleDrop}
+          draggedTask={draggedTask}
         />
       </div>
 

@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
-import { Calendar, ChevronLeft, ChevronRight, Flame, Bell } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Flame, Bell, Sun, Moon } from 'lucide-react';
 import { useProductivityStore } from '@/store/useProductivityStore';
+import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/button';
 
 export const Header = () => {
   const { currentDate, setCurrentDate, streakCount, longestStreak } = useProductivityStore();
+  const { theme, toggleTheme } = useTheme();
   
   const date = new Date(currentDate);
   const formattedDate = date.toLocaleDateString('en-US', {
@@ -88,6 +90,15 @@ export const Header = () => {
             </span>
           )}
         </motion.div>
+
+        {/* Theme Toggle */}
+        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+          {theme === 'dark' ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">

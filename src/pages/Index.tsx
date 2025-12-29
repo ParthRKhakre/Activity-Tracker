@@ -9,6 +9,7 @@ import { WeeklyTrendChart } from '@/components/charts/WeeklyTrendChart';
 import { CategoryBreakdown } from '@/components/charts/CategoryBreakdown';
 import { StreakCalendar } from '@/components/streaks/StreakCalendar';
 import { EisenhowerMatrix } from '@/components/eisenhower/EisenhowerMatrix';
+import { TimeBlockView } from '@/components/timeblock/TimeBlockView';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -60,23 +61,7 @@ const Index = () => {
       case 'eisenhower':
         return <EisenhowerMatrix />;
       case 'timeblock':
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card rounded-xl p-12 text-center"
-          >
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🚀</span>
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              Coming Soon
-            </h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Time Blocking is under development. We're working hard to bring you powerful tools for better time management.
-            </p>
-          </motion.div>
-        );
+        return <TimeBlockView />;
       case 'settings':
         return (
           <motion.div
