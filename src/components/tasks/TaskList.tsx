@@ -1,12 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Sparkles } from 'lucide-react';
 import { useProductivityStore } from '@/store/useProductivityStore';
 import { TaskCard } from './TaskCard';
+import { TaskCreationModal } from './TaskCreationModal';
 import { Button } from '@/components/ui/button';
 
 export const TaskList = () => {
   const { currentDate, getTasksForDate, getDailyEntry, initializeDailyTasks } = useProductivityStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const tasks = getTasksForDate(currentDate);
   const dailyEntry = getDailyEntry(currentDate);
 
@@ -29,7 +31,7 @@ export const TaskList = () => {
             {dailyEntry.completedCount} of {dailyEntry.totalCount} tasks completed
           </p>
         </div>
-        <Button className="btn-primary flex items-center gap-2">
+        <Button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Add Task
         </Button>
@@ -93,12 +95,15 @@ export const TaskList = () => {
           <p className="text-muted-foreground mb-4">
             Your daily tasks will appear here. Start by adding your first task.
           </p>
-          <Button className="btn-primary">
+          <Button onClick={() => setIsModalOpen(true)} className="btn-primary">
             <Plus className="w-4 h-4 mr-2" />
             Add Your First Task
           </Button>
         </motion.div>
       )}
+
+      {/* Task Creation Modal */}
+      <TaskCreationModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </motion.div>
   );
 };
