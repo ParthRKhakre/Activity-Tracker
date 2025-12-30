@@ -12,9 +12,13 @@ import {
   ArrowRight,
   GripVertical
 } from 'lucide-react';
-import { Task, TaskStatus, TaskUrgency, TaskImportance, useProductivityStore } from '@/store/useProductivityStore';
+import { useTasksDB, Task } from '@/hooks/useTasksDB';
 import { cn } from '@/lib/utils';
+import type { Database } from '@/integrations/supabase/types';
 
+type TaskStatus = Database['public']['Enums']['task_status'];
+type TaskUrgency = Database['public']['Enums']['task_urgency'];
+type TaskImportance = Database['public']['Enums']['task_importance'];
 type QuadrantType = 'do' | 'schedule' | 'delegate' | 'eliminate';
 
 interface QuadrantConfig {
@@ -122,10 +126,10 @@ const TaskItem = ({ task, index, onUpdateStatus, isDragging }: TaskItemProps) =>
               <Check className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => onUpdateStatus(task.id, 'partial')}
+              onClick={() => onUpdateStatus(task.id, 'in-progress')}
               className={cn(
                 'p-1.5 rounded-md transition-colors',
-                task.status === 'partial' 
+                task.status === 'in-progress' 
                   ? 'bg-warning/20 text-warning' 
                   : 'hover:bg-warning/20 hover:text-warning text-muted-foreground'
               )}
@@ -133,10 +137,10 @@ const TaskItem = ({ task, index, onUpdateStatus, isDragging }: TaskItemProps) =>
               <Minus className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => onUpdateStatus(task.id, 'skipped')}
+              onClick={() => onUpdateStatus(task.id, 'pending')}
               className={cn(
                 'p-1.5 rounded-md transition-colors',
-                task.status === 'skipped' 
+                task.status === 'pending' 
                   ? 'bg-danger/20 text-danger' 
                   : 'hover:bg-danger/20 hover:text-danger text-muted-foreground'
               )}
@@ -232,28 +236,41 @@ const Quadrant = ({
 };
 
 export const EisenhowerMatrix = () => {
-  const { currentDate, getTasksForDate, updateTaskStatus, updateTask } = useProductivityStore();
-  const tasks = getTasksForDate(currentDate);
+  const { tasks, updateTask, loading } = useTasksDB();
+  const [currentDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
+
+  const tasksForDate = useMemo(() => 
+    tasks.filter(t => t.date === currentDate),
+    [tasks, currentDate]
+  );
 
   const categorizedTasks = useMemo(() => {
     return {
-      do: tasks.filter(t => t.urgency === 'urgent' && t.importance === 'important'),
-      schedule: tasks.filter(t => t.urgency === 'not-urgent' && t.importance === 'important'),
-      delegate: tasks.filter(t => t.urgency === 'urgent' && t.importance === 'not-important'),
-      eliminate: tasks.filter(t => t.urgency === 'not-urgent' && t.importance === 'not-important'),
+      do: tasksForDate.filter(t => t.urgency === 'urgent' && t.importance === 'important'),
+      schedule: tasksForDate.filter(t => t.urgency === 'not-urgent' && t.importance === 'important'),
+      delegate: tasksForDate.filter(t => t.urgency === 'urgent' && t.importance === 'not-important'),
+      eliminate: tasksForDate.filter(t => t.urgency === 'not-urgent' && t.importance === 'not-important'),
     };
-  }, [tasks]);
+  }, [tasksForDate]);
 
-  const handleUpdateStatus = (taskId: string, status: TaskStatus) => {
-    updateTaskStatus(taskId, status);
+  const handleUpdateStatus = async (taskId: string, status: TaskStatus) => {
+    await updateTask(taskId, { status });
   };
 
-  const handleDrop = (taskId: string, quadrant: QuadrantType) => {
+  const handleDrop = async (taskId: string, quadrant: QuadrantType) => {
     const config = quadrantConfig[quadrant];
-    updateTask(taskId, { urgency: config.urgency, importance: config.importance });
+    await updateTask(taskId, { urgency: config.urgency, importance: config.importance });
     setDraggedTask(null);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

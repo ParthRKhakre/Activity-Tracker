@@ -1,13 +1,29 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, CheckCircle, Flame, Target, Clock, Award } from 'lucide-react';
-import { useProductivityStore } from '@/store/useProductivityStore';
+import { TrendingUp, CheckCircle, Flame, Target } from 'lucide-react';
+import { useTasksDB } from '@/hooks/useTasksDB';
 
-export const StatsCards = () => {
-  const { currentDate, getDailyEntry, streakCount, longestStreak, tasks } = useProductivityStore();
-  const dailyEntry = getDailyEntry(currentDate);
+interface StatsCardsProps {
+  streakCount?: number;
+  longestStreak?: number;
+}
 
-  // Calculate weekly stats
-  const getWeeklyStats = () => {
+export const StatsCards = ({ streakCount = 0, longestStreak = 0 }: StatsCardsProps) => {
+  const { tasks, loading } = useTasksDB();
+  const currentDate = new Date().toISOString().split('T')[0];
+
+  const dailyEntry = useMemo(() => {
+    const dayTasks = tasks.filter(t => t.date === currentDate);
+    const completedCount = dayTasks.filter(t => t.status === 'completed').length;
+    const partialCount = dayTasks.filter(t => t.status === 'in-progress').length;
+    const totalCount = dayTasks.length;
+    const score = totalCount > 0
+      ? Math.round(((completedCount * 1 + partialCount * 0.5) / totalCount) * 100)
+      : 0;
+    return { completedCount, totalCount, score };
+  }, [tasks, currentDate]);
+
+  const weeklyStats = useMemo(() => {
     const today = new Date(currentDate);
     let totalTasks = 0;
     let completedTasks = 0;
@@ -21,10 +37,24 @@ export const StatsCards = () => {
       completedTasks += dayTasks.filter((t) => t.status === 'completed').length;
     }
 
-    return { totalTasks, completedTasks, percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0 };
-  };
+    return { 
+      totalTasks, 
+      completedTasks, 
+      percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0 
+    };
+  }, [tasks, currentDate]);
 
-  const weeklyStats = getWeeklyStats();
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="stat-card animate-pulse">
+            <div className="h-24 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const stats = [
     {

@@ -1,12 +1,21 @@
 import { motion } from 'framer-motion';
-import { Calendar, ChevronLeft, ChevronRight, Flame, Bell, Sun, Moon } from 'lucide-react';
-import { useProductivityStore } from '@/store/useProductivityStore';
+import { Calendar, ChevronLeft, ChevronRight, Flame, Bell, Sun, Moon, LogOut } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
-export const Header = () => {
-  const { currentDate, setCurrentDate, streakCount, longestStreak } = useProductivityStore();
+interface HeaderProps {
+  currentDate: string;
+  setCurrentDate: (date: string) => void;
+  streakCount?: number;
+  longestStreak?: number;
+}
+
+export const Header = ({ currentDate, setCurrentDate, streakCount = 0, longestStreak = 0 }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
+  const { signOut, user } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   
   const date = new Date(currentDate);
   const formattedDate = date.toLocaleDateString('en-US', {
@@ -27,6 +36,12 @@ export const Header = () => {
   };
 
   const isToday = currentDate === new Date().toISOString().split('T')[0];
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await signOut();
+    setSigningOut(false);
+  };
 
   return (
     <motion.header
@@ -105,6 +120,24 @@ export const Header = () => {
           <Bell className="h-5 w-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
         </Button>
+
+        {/* User info & Sign out */}
+        {user && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground hidden sm:block">
+              {user.email}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              title="Sign out"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
       </div>
     </motion.header>
   );
