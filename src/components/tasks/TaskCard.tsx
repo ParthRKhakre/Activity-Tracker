@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { Check, Minus, X, MoreHorizontal, Code2, Brain, Trophy, GraduationCap, BarChart3, Target } from 'lucide-react';
-import { Task, TaskStatus, useProductivityStore } from '@/store/useProductivityStore';
+import { Check, Minus, X, MoreHorizontal, Code2, Brain, Trophy, GraduationCap, BarChart3, Target, Briefcase, User, Heart, Book } from 'lucide-react';
+import { useTasksDB, Task, Category } from '@/hooks/useTasksDB';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -8,10 +8,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type { Database } from '@/integrations/supabase/types';
+
+type TaskStatus = Database['public']['Enums']['task_status'];
 
 interface TaskCardProps {
   task: Task;
   index: number;
+  categories: Category[];
 }
 
 const iconMap: Record<string, React.ElementType> = {
@@ -21,6 +25,11 @@ const iconMap: Record<string, React.ElementType> = {
   GraduationCap,
   BarChart3,
   Target,
+  briefcase: Briefcase,
+  user: User,
+  heart: Heart,
+  book: Book,
+  folder: Target,
 };
 
 const statusConfig = {
@@ -30,41 +39,39 @@ const statusConfig = {
     text: 'text-muted-foreground',
     icon: null,
   },
+  'in-progress': {
+    bg: 'bg-warning/10',
+    border: 'border-warning/30',
+    text: 'text-warning',
+    icon: Minus,
+  },
   completed: {
     bg: 'bg-success/10',
     border: 'border-success/30',
     text: 'text-success',
     icon: Check,
   },
-  partial: {
-    bg: 'bg-warning/10',
-    border: 'border-warning/30',
-    text: 'text-warning',
-    icon: Minus,
-  },
-  skipped: {
-    bg: 'bg-danger/10',
-    border: 'border-danger/30',
-    text: 'text-danger',
-    icon: X,
-  },
 };
 
-export const TaskCard = ({ task, index }: TaskCardProps) => {
-  const { updateTaskStatus, categories, deleteTask } = useProductivityStore();
-  const category = categories.find((c) => c.id === task.category);
+export const TaskCard = ({ task, index, categories }: TaskCardProps) => {
+  const { updateTask, deleteTask } = useTasksDB();
+  const category = categories.find((c) => c.id === task.category_id);
   const status = statusConfig[task.status];
   const StatusIcon = status.icon;
   const CategoryIcon = category ? iconMap[category.icon] || Target : Target;
 
-  const handleStatusChange = (newStatus: TaskStatus) => {
-    updateTaskStatus(task.id, newStatus);
+  const handleStatusChange = async (newStatus: TaskStatus) => {
+    await updateTask(task.id, { status: newStatus });
+  };
+
+  const handleDelete = async () => {
+    await deleteTask(task.id);
   };
 
   const statusButtons: { status: TaskStatus; icon: React.ElementType; label: string; color: string }[] = [
     { status: 'completed', icon: Check, label: 'Complete', color: 'hover:bg-success/20 hover:text-success hover:border-success/30' },
-    { status: 'partial', icon: Minus, label: 'Partial', color: 'hover:bg-warning/20 hover:text-warning hover:border-warning/30' },
-    { status: 'skipped', icon: X, label: 'Skip', color: 'hover:bg-danger/20 hover:text-danger hover:border-danger/30' },
+    { status: 'in-progress', icon: Minus, label: 'In Progress', color: 'hover:bg-warning/20 hover:text-warning hover:border-warning/30' },
+    { status: 'pending', icon: X, label: 'Pending', color: 'hover:bg-danger/20 hover:text-danger hover:border-danger/30' },
   ];
 
   return (
@@ -146,7 +153,7 @@ export const TaskCard = ({ task, index }: TaskCardProps) => {
                 Reset to Pending
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => deleteTask(task.id)}
+                onClick={handleDelete}
                 className="text-danger"
               >
                 Delete Task

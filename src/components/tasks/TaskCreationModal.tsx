@@ -19,45 +19,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useProductivityStore, TaskUrgency, TaskImportance } from '@/store/useProductivityStore';
+import { useTasksDB, Category } from '@/hooks/useTasksDB';
 import { cn } from '@/lib/utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type TaskUrgency = Database['public']['Enums']['task_urgency'];
+type TaskImportance = Database['public']['Enums']['task_importance'];
+type TaskPriority = Database['public']['Enums']['task_priority'];
 
 interface TaskCreationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  categories: Category[];
+  currentDate: string;
 }
 
-type Priority = 'high' | 'medium' | 'low';
-
-export const TaskCreationModal = ({ open, onOpenChange }: TaskCreationModalProps) => {
-  const { addTask, categories, currentDate } = useProductivityStore();
+export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate }: TaskCreationModalProps) => {
+  const { addTask } = useTasksDB();
   
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
-  const [category, setCategory] = useState(categories[0]?.id || '');
-  const [priority, setPriority] = useState<Priority>('medium');
+  const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
+  const [priority, setPriority] = useState<TaskPriority>('medium');
   const [urgency, setUrgency] = useState<TaskUrgency>('not-urgent');
   const [importance, setImportance] = useState<TaskImportance>('not-important');
 
   const resetForm = () => {
     setName('');
     setNotes('');
-    setCategory(categories[0]?.id || '');
+    setCategoryId(categories[0]?.id || '');
     setPriority('medium');
     setUrgency('not-urgent');
     setImportance('not-important');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) return;
 
-    addTask({
+    await addTask({
       name: name.trim(),
       notes: notes.trim() || undefined,
-      category,
+      category_id: categoryId || undefined,
       status: 'pending',
+      priority,
       date: currentDate,
       urgency,
       importance,
@@ -124,7 +130,7 @@ export const TaskCreationModal = ({ open, onOpenChange }: TaskCreationModalProps
             <Label htmlFor="category" className="text-sm font-medium">
               Category
             </Label>
-            <Select value={category} onValueChange={setCategory}>
+            <Select value={categoryId} onValueChange={setCategoryId}>
               <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
@@ -149,7 +155,7 @@ export const TaskCreationModal = ({ open, onOpenChange }: TaskCreationModalProps
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => setPriority(option.value as Priority)}
+                  onClick={() => setPriority(option.value as TaskPriority)}
                   className={cn(
                     'flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all border',
                     priority === option.value

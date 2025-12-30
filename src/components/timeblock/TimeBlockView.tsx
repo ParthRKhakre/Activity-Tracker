@@ -1,22 +1,26 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Plus, GripVertical, X } from 'lucide-react';
-import { useProductivityStore, Task } from '@/store/useProductivityStore';
-import { Button } from '@/components/ui/button';
+import { useTasksDB, Task } from '@/hooks/useTasksDB';
 import { cn } from '@/lib/utils';
 
 interface TimeBlock {
   id: string;
   taskId: string | null;
   startHour: number;
-  duration: number; // in hours
+  duration: number;
 }
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6 AM to 9 PM
+const HOURS = Array.from({ length: 16 }, (_, i) => i + 6);
 
 export const TimeBlockView = () => {
-  const { currentDate, getTasksForDate } = useProductivityStore();
-  const tasks = getTasksForDate(currentDate);
+  const { tasks, loading } = useTasksDB();
+  const [currentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  
+  const tasksForDate = useMemo(() => 
+    tasks.filter(t => t.date === currentDate),
+    [tasks, currentDate]
+  );
   
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
@@ -24,8 +28,8 @@ export const TimeBlockView = () => {
 
   const unscheduledTasks = useMemo(() => {
     const scheduledTaskIds = timeBlocks.map(b => b.taskId).filter(Boolean);
-    return tasks.filter(t => !scheduledTaskIds.includes(t.id));
-  }, [tasks, timeBlocks]);
+    return tasksForDate.filter(t => !scheduledTaskIds.includes(t.id));
+  }, [tasksForDate, timeBlocks]);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('taskId', taskId);
@@ -47,10 +51,8 @@ export const TimeBlockView = () => {
     const taskId = e.dataTransfer.getData('taskId');
     
     if (taskId) {
-      // Remove existing block for this task
       const filtered = timeBlocks.filter(b => b.taskId !== taskId);
       
-      // Add new block
       const newBlock: TimeBlock = {
         id: Math.random().toString(36).substr(2, 9),
         taskId,
@@ -74,7 +76,7 @@ export const TimeBlockView = () => {
   };
 
   const getTaskById = (taskId: string) => {
-    return tasks.find(t => t.id === taskId);
+    return tasksForDate.find(t => t.id === taskId);
   };
 
   const formatHour = (hour: number) => {
@@ -82,6 +84,14 @@ export const TimeBlockView = () => {
     const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
     return `${displayHour}:00 ${suffix}`;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

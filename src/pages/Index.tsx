@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
@@ -10,11 +10,56 @@ import { CategoryBreakdown } from '@/components/charts/CategoryBreakdown';
 import { StreakCalendar } from '@/components/streaks/StreakCalendar';
 import { EisenhowerMatrix } from '@/components/eisenhower/EisenhowerMatrix';
 import { TimeBlockView } from '@/components/timeblock/TimeBlockView';
+import { useTasksDB } from '@/hooks/useTasksDB';
+
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentDate, setCurrentDate] = useState(formatDate(new Date()));
+  const { tasks, loading } = useTasksDB();
+
+  // Calculate streak
+  const { streakCount, longestStreak } = useMemo(() => {
+    let streak = 0;
+    let longest = 0;
+    const today = new Date();
+    let checkDate = new Date(today);
+
+    while (true) {
+      const dateStr = formatDate(checkDate);
+      const dayTasks = tasks.filter((t) => t.date === dateStr);
+      
+      if (dayTasks.length === 0) break;
+      
+      const allCompleted = dayTasks.every(
+        (t) => t.status === 'completed' || t.status === 'in-progress'
+      );
+      
+      if (!allCompleted) break;
+      
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    if (streak > longest) {
+      longest = streak;
+    }
+
+    return { streakCount: streak, longestStreak: longest };
+  }, [tasks]);
 
   const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return (
@@ -109,7 +154,12 @@ const Index = () => {
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <Header 
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          streakCount={streakCount}
+          longestStreak={longestStreak}
+        />
         
         <main className="flex-1 overflow-y-auto p-6">
           <motion.div

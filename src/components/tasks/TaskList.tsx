@@ -1,20 +1,40 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Sparkles } from 'lucide-react';
-import { useProductivityStore } from '@/store/useProductivityStore';
+import { useTasksDB } from '@/hooks/useTasksDB';
 import { TaskCard } from './TaskCard';
 import { TaskCreationModal } from './TaskCreationModal';
 import { Button } from '@/components/ui/button';
 
 export const TaskList = () => {
-  const { currentDate, getTasksForDate, getDailyEntry, initializeDailyTasks } = useProductivityStore();
+  const { tasks, categories, loading } = useTasksDB();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const tasks = getTasksForDate(currentDate);
-  const dailyEntry = getDailyEntry(currentDate);
+  const [currentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  
+  const tasksForDate = useMemo(() => 
+    tasks.filter(t => t.date === currentDate),
+    [tasks, currentDate]
+  );
 
-  useEffect(() => {
-    initializeDailyTasks(currentDate);
-  }, [currentDate, initializeDailyTasks]);
+  const dailyEntry = useMemo(() => {
+    const completedCount = tasksForDate.filter(t => t.status === 'completed').length;
+    const partialCount = tasksForDate.filter(t => t.status === 'in-progress').length;
+    const skippedCount = tasksForDate.filter(t => t.status === 'pending').length;
+    const totalCount = tasksForDate.length;
+    const score = totalCount > 0
+      ? Math.round(((completedCount * 1 + partialCount * 0.5) / totalCount) * 100)
+      : 0;
+
+    return { completedCount, partialCount, skippedCount, totalCount, score };
+  }, [tasksForDate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -61,23 +81,23 @@ export const TaskList = () => {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-warning" />
             <span className="text-xs text-muted-foreground">
-              {dailyEntry.partialCount} Partial
+              {dailyEntry.partialCount} In Progress
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-danger" />
             <span className="text-xs text-muted-foreground">
-              {dailyEntry.skippedCount} Skipped
+              {dailyEntry.skippedCount} Pending
             </span>
           </div>
         </div>
       </div>
 
       {/* Tasks */}
-      {tasks.length > 0 ? (
+      {tasksForDate.length > 0 ? (
         <div className="grid gap-3">
-          {tasks.map((task, index) => (
-            <TaskCard key={task.id} task={task} index={index} />
+          {tasksForDate.map((task, index) => (
+            <TaskCard key={task.id} task={task} index={index} categories={categories} />
           ))}
         </div>
       ) : (
@@ -103,7 +123,12 @@ export const TaskList = () => {
       )}
 
       {/* Task Creation Modal */}
-      <TaskCreationModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+      <TaskCreationModal 
+        open={isModalOpen} 
+        onOpenChange={setIsModalOpen}
+        categories={categories}
+        currentDate={currentDate}
+      />
     </motion.div>
   );
 };
