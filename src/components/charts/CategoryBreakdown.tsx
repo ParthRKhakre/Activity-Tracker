@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useProductivityStore } from '@/store/useProductivityStore';
-import { Code2, Brain, Trophy, GraduationCap, BarChart3, Target } from 'lucide-react';
+import { useTasksDB } from '@/hooks/useTasksDB';
+import { Code2, Brain, Trophy, GraduationCap, BarChart3, Target, Briefcase, User, Heart, Book } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -11,9 +11,21 @@ const iconMap: Record<string, React.ElementType> = {
   GraduationCap,
   BarChart3,
   Target,
+  briefcase: Briefcase,
+  user: User,
+  heart: Heart,
+  book: Book,
+  folder: Target,
 };
 
 const colorMap: Record<string, string> = {
+  '#3B82F6': 'bg-blue-500/20 text-blue-400',
+  '#10B981': 'bg-emerald-500/20 text-emerald-400',
+  '#EF4444': 'bg-red-500/20 text-red-400',
+  '#8B5CF6': 'bg-purple-500/20 text-purple-400',
+  '#F59E0B': 'bg-orange-500/20 text-orange-400',
+  '#EC4899': 'bg-pink-500/20 text-pink-400',
+  '#06B6D4': 'bg-cyan-500/20 text-cyan-400',
   emerald: 'bg-emerald-500/20 text-emerald-400',
   blue: 'bg-blue-500/20 text-blue-400',
   purple: 'bg-purple-500/20 text-purple-400',
@@ -23,6 +35,13 @@ const colorMap: Record<string, string> = {
 };
 
 const barColorMap: Record<string, string> = {
+  '#3B82F6': 'bg-blue-500',
+  '#10B981': 'bg-emerald-500',
+  '#EF4444': 'bg-red-500',
+  '#8B5CF6': 'bg-purple-500',
+  '#F59E0B': 'bg-orange-500',
+  '#EC4899': 'bg-pink-500',
+  '#06B6D4': 'bg-cyan-500',
   emerald: 'bg-emerald-500',
   blue: 'bg-blue-500',
   purple: 'bg-purple-500',
@@ -32,7 +51,8 @@ const barColorMap: Record<string, string> = {
 };
 
 export const CategoryBreakdown = () => {
-  const { categories, tasks, currentDate } = useProductivityStore();
+  const { categories, tasks, loading } = useTasksDB();
+  const currentDate = new Date().toISOString().split('T')[0];
 
   const categoryStats = useMemo(() => {
     // Get last 30 days of data
@@ -50,10 +70,10 @@ export const CategoryBreakdown = () => {
       const dayTasks = tasks.filter((t) => t.date === dateStr);
 
       dayTasks.forEach((task) => {
-        if (stats[task.category]) {
-          stats[task.category].total++;
+        if (task.category_id && stats[task.category_id]) {
+          stats[task.category_id].total++;
           if (task.status === 'completed') {
-            stats[task.category].completed++;
+            stats[task.category_id].completed++;
           }
         }
       });
@@ -61,13 +81,21 @@ export const CategoryBreakdown = () => {
 
     return categories.map((cat) => ({
       ...cat,
-      completed: stats[cat.id].completed,
-      total: stats[cat.id].total,
-      percentage: stats[cat.id].total > 0 
+      completed: stats[cat.id]?.completed || 0,
+      total: stats[cat.id]?.total || 0,
+      percentage: stats[cat.id]?.total > 0 
         ? Math.round((stats[cat.id].completed / stats[cat.id].total) * 100) 
         : 0,
     })).sort((a, b) => b.percentage - a.percentage);
   }, [categories, tasks, currentDate]);
+
+  if (loading) {
+    return (
+      <div className="chart-container h-[300px] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -82,48 +110,54 @@ export const CategoryBreakdown = () => {
       </div>
 
       <div className="space-y-4">
-        {categoryStats.map((category, index) => {
-          const Icon = iconMap[category.icon] || Target;
-          const colorClass = colorMap[category.color] || colorMap.emerald;
-          const barColor = barColorMap[category.color] || barColorMap.emerald;
+        {categoryStats.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No categories found. Add tasks to see category performance.
+          </p>
+        ) : (
+          categoryStats.map((category, index) => {
+            const Icon = iconMap[category.icon] || Target;
+            const colorClass = colorMap[category.color] || 'bg-primary/20 text-primary';
+            const barColor = barColorMap[category.color] || 'bg-primary';
 
-          return (
-            <motion.div
-              key={category.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              className="group"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', colorClass)}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground truncate">
-                      {category.name}
-                    </span>
-                    <span className="text-sm font-bold text-foreground ml-2">
-                      {category.percentage}%
-                    </span>
+            return (
+              <motion.div
+                key={category.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className="group"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', colorClass)}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {category.name}
+                      </span>
+                      <span className="text-sm font-bold text-foreground ml-2">
+                        {category.percentage}%
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden ml-11">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${category.percentage}%` }}
-                  transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
-                  className={cn('h-full rounded-full', barColor)}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 ml-11">
-                {category.completed} of {category.total} tasks completed
-              </p>
-            </motion.div>
-          );
-        })}
+                <div className="h-2 bg-muted rounded-full overflow-hidden ml-11">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${category.percentage}%` }}
+                    transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
+                    className={cn('h-full rounded-full', barColor)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 ml-11">
+                  {category.completed} of {category.total} tasks completed
+                </p>
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </motion.div>
   );

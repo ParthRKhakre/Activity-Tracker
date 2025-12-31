@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart,
@@ -9,29 +9,45 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { useProductivityStore } from '@/store/useProductivityStore';
+import { useTasksDB } from '@/hooks/useTasksDB';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
 
 export const MonthlyProgressChart = () => {
-  const { getMonthlyData, currentDate } = useProductivityStore();
+  const { tasks, loading } = useTasksDB();
   const [viewMonth, setViewMonth] = useState(() => {
-    const d = new Date(currentDate);
+    const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
   });
 
   const monthlyData = useMemo(() => {
-    return getMonthlyData(viewMonth.year, viewMonth.month).map((entry) => ({
-      day: parseInt(entry.date.split('-')[2]),
-      completed: entry.completedCount,
-      partial: entry.partialCount,
-      skipped: entry.skippedCount,
-      total: entry.totalCount,
-      score: entry.score,
-      date: entry.date,
-    }));
-  }, [getMonthlyData, viewMonth]);
+    const daysInMonth = new Date(viewMonth.year, viewMonth.month + 1, 0).getDate();
+    const entries = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayTasks = tasks.filter((t) => t.date === dateStr);
+      const completedCount = dayTasks.filter((t) => t.status === 'completed').length;
+      const partialCount = dayTasks.filter((t) => t.status === 'in-progress').length;
+      const skippedCount = dayTasks.filter((t) => t.status === 'pending').length;
+      const totalCount = dayTasks.length;
+      const score = totalCount > 0
+        ? Math.round(((completedCount * 1 + partialCount * 0.5) / totalCount) * 100)
+        : 0;
+
+      entries.push({
+        day,
+        completed: completedCount,
+        partial: partialCount,
+        skipped: skippedCount,
+        total: totalCount,
+        score,
+        date: dateStr,
+      });
+    }
+
+    return entries;
+  }, [tasks, viewMonth]);
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setViewMonth((prev) => {
@@ -91,6 +107,14 @@ export const MonthlyProgressChart = () => {
     if (score > 0) return 'hsl(0, 84%, 60%)'; // danger
     return 'hsl(217, 33%, 17%)'; // muted
   };
+
+  if (loading) {
+    return (
+      <div className="chart-container h-[400px] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div

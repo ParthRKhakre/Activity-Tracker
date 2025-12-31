@@ -71,7 +71,7 @@ const Index = () => {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <CategoryBreakdown />
-              <StreakCalendar />
+              <StreakCalendar streakCount={streakCount} longestStreak={longestStreak} />
             </div>
           </div>
         );
@@ -96,7 +96,7 @@ const Index = () => {
       case 'streaks':
         return (
           <div className="space-y-6">
-            <StreakCalendar />
+            <StreakCalendar streakCount={streakCount} longestStreak={longestStreak} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <WeeklyTrendChart />
               <CategoryBreakdown />

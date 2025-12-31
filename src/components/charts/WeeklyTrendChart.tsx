@@ -8,10 +8,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useProductivityStore } from '@/store/useProductivityStore';
+import { useTasksDB } from '@/hooks/useTasksDB';
 
 export const WeeklyTrendChart = () => {
-  const { tasks, currentDate } = useProductivityStore();
+  const { tasks, loading } = useTasksDB();
+  const currentDate = new Date().toISOString().split('T')[0];
 
   const weeklyData = useMemo(() => {
     const data = [];
@@ -23,7 +24,7 @@ export const WeeklyTrendChart = () => {
       const dateStr = date.toISOString().split('T')[0];
       const dayTasks = tasks.filter((t) => t.date === dateStr);
       const completed = dayTasks.filter((t) => t.status === 'completed').length;
-      const partial = dayTasks.filter((t) => t.status === 'partial').length;
+      const partial = dayTasks.filter((t) => t.status === 'in-progress').length;
       const total = dayTasks.length;
       const score = total > 0 ? Math.round(((completed + partial * 0.5) / total) * 100) : 0;
 
@@ -53,6 +54,14 @@ export const WeeklyTrendChart = () => {
     }
     return null;
   };
+
+  if (loading) {
+    return (
+      <div className="chart-container h-[280px] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
