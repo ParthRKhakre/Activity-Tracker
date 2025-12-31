@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Zap, Clock, AlertTriangle, FileText } from 'lucide-react';
+import { Pencil, Zap, Clock, AlertTriangle, FileText } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useTasksDB, Category } from '@/hooks/useTasksDB';
-import { useToast } from '@/hooks/use-toast';
+import { Task, Category } from '@/hooks/useTasksDB';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -28,55 +27,46 @@ type TaskUrgency = Database['public']['Enums']['task_urgency'];
 type TaskImportance = Database['public']['Enums']['task_importance'];
 type TaskPriority = Database['public']['Enums']['task_priority'];
 
-interface TaskCreationModalProps {
+interface TaskEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  task: Task;
   categories: Category[];
-  currentDate: string;
+  onSave: (updates: Partial<Task>) => Promise<void>;
 }
 
-export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate }: TaskCreationModalProps) => {
-  const { addTask } = useTasksDB();
-  const { toast } = useToast();
-  
-  const [name, setName] = useState('');
-  const [notes, setNotes] = useState('');
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
-  const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [urgency, setUrgency] = useState<TaskUrgency>('not-urgent');
-  const [importance, setImportance] = useState<TaskImportance>('not-important');
+export const TaskEditModal = ({ open, onOpenChange, task, categories, onSave }: TaskEditModalProps) => {
+  const [name, setName] = useState(task.name);
+  const [notes, setNotes] = useState(task.notes || '');
+  const [categoryId, setCategoryId] = useState(task.category_id || '');
+  const [priority, setPriority] = useState<TaskPriority>(task.priority);
+  const [urgency, setUrgency] = useState<TaskUrgency>(task.urgency);
+  const [importance, setImportance] = useState<TaskImportance>(task.importance);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const resetForm = () => {
-    setName('');
-    setNotes('');
-    setCategoryId(categories[0]?.id || '');
-    setPriority('medium');
-    setUrgency('not-urgent');
-    setImportance('not-important');
-  };
+  useEffect(() => {
+    setName(task.name);
+    setNotes(task.notes || '');
+    setCategoryId(task.category_id || '');
+    setPriority(task.priority);
+    setUrgency(task.urgency);
+    setImportance(task.importance);
+  }, [task]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!name.trim()) return;
 
-    await addTask({
+    setIsSaving(true);
+    await onSave({
       name: name.trim(),
       notes: notes.trim() || undefined,
       category_id: categoryId || undefined,
-      status: 'pending',
       priority,
-      date: currentDate,
       urgency,
       importance,
     });
-
-    toast({
-      title: "Task Created",
-      description: `"${name.trim()}" has been added to your tasks`,
-    });
-
-    resetForm();
+    setIsSaving(false);
     onOpenChange(false);
   };
 
@@ -92,23 +82,23 @@ export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Plus className="w-4 h-4 text-primary" />
+              <Pencil className="w-4 h-4 text-primary" />
             </div>
-            Create New Task
+            Edit Task
           </DialogTitle>
           <DialogDescription>
-            Add a new task with custom details to track your progress.
+            Update the task details below.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-4">
           {/* Task Name */}
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium">
+            <Label htmlFor="edit-name" className="text-sm font-medium">
               Task Name <span className="text-danger">*</span>
             </Label>
             <Input
-              id="name"
+              id="edit-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter task name..."
@@ -119,12 +109,12 @@ export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate 
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-medium flex items-center gap-2">
+            <Label htmlFor="edit-notes" className="text-sm font-medium flex items-center gap-2">
               <FileText className="w-3.5 h-3.5 text-muted-foreground" />
               Notes
             </Label>
             <Textarea
-              id="notes"
+              id="edit-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any additional notes..."
@@ -134,7 +124,7 @@ export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate 
 
           {/* Category */}
           <div className="space-y-2">
-            <Label htmlFor="category" className="text-sm font-medium">
+            <Label htmlFor="edit-category" className="text-sm font-medium">
               Category
             </Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
@@ -269,16 +259,16 @@ export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate 
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="flex-1"
+              disabled={isSaving}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={!name.trim()}
+              disabled={!name.trim() || isSaving}
               className="flex-1 btn-primary"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Task
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>

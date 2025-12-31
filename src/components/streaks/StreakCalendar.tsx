@@ -1,11 +1,17 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useProductivityStore } from '@/store/useProductivityStore';
+import { useTasksDB } from '@/hooks/useTasksDB';
 import { Flame, Trophy, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export const StreakCalendar = () => {
-  const { tasks, currentDate, streakCount, longestStreak } = useProductivityStore();
+interface StreakCalendarProps {
+  streakCount?: number;
+  longestStreak?: number;
+}
+
+export const StreakCalendar = ({ streakCount = 0, longestStreak = 0 }: StreakCalendarProps) => {
+  const { tasks, loading } = useTasksDB();
+  const currentDate = new Date().toISOString().split('T')[0];
 
   const calendarData = useMemo(() => {
     const data: { date: string; score: number; isToday: boolean }[] = [];
@@ -18,7 +24,7 @@ export const StreakCalendar = () => {
       date.setDate(startOfWeek.getDate() + i);
       const dateStr = date.toISOString().split('T')[0];
       const dayTasks = tasks.filter((t) => t.date === dateStr);
-      const completed = dayTasks.filter((t) => t.status === 'completed' || t.status === 'partial').length;
+      const completed = dayTasks.filter((t) => t.status === 'completed' || t.status === 'in-progress').length;
       const total = dayTasks.length;
       const score = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -47,6 +53,14 @@ export const StreakCalendar = () => {
   }
 
   const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  if (loading) {
+    return (
+      <div className="chart-container h-[300px] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
