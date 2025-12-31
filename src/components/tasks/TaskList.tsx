@@ -7,7 +7,7 @@ import { TaskCreationModal } from './TaskCreationModal';
 import { Button } from '@/components/ui/button';
 
 export const TaskList = () => {
-  const { tasks, categories, loading } = useTasksDB();
+  const { tasks, categories, loading, addTask, updateTask, deleteTask } = useTasksDB();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDate] = useState(() => new Date().toISOString().split('T')[0]);
   
@@ -97,7 +97,14 @@ export const TaskList = () => {
       {tasksForDate.length > 0 ? (
         <div className="grid gap-3">
           {tasksForDate.map((task, index) => (
-            <TaskCard key={task.id} task={task} index={index} categories={categories} />
+            <TaskCard 
+              key={task.id} 
+              task={task} 
+              index={index} 
+              categories={categories}
+              onUpdateTask={updateTask}
+              onDeleteTask={deleteTask}
+            />
           ))}
         </div>
       ) : (
@@ -128,6 +135,7 @@ export const TaskList = () => {
         onOpenChange={setIsModalOpen}
         categories={categories}
         currentDate={currentDate}
+        onAddTask={addTask}
       />
     </motion.div>
   );

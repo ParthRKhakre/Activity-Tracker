@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useTasksDB, Category } from '@/hooks/useTasksDB';
+import { Category, Task } from '@/hooks/useTasksDB';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -33,10 +33,10 @@ interface TaskCreationModalProps {
   onOpenChange: (open: boolean) => void;
   categories: Category[];
   currentDate: string;
+  onAddTask: (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
 }
 
-export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate }: TaskCreationModalProps) => {
-  const { addTask } = useTasksDB();
+export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate, onAddTask }: TaskCreationModalProps) => {
   const { toast } = useToast();
   
   const [name, setName] = useState('');
@@ -60,7 +60,7 @@ export const TaskCreationModal = ({ open, onOpenChange, categories, currentDate 
     
     if (!name.trim()) return;
 
-    await addTask({
+    await onAddTask({
       name: name.trim(),
       notes: notes.trim() || undefined,
       category_id: categoryId || undefined,

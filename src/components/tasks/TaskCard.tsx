@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Minus, X, MoreHorizontal, Pencil, Trash2, Code2, Brain, Trophy, GraduationCap, BarChart3, Target, Briefcase, User, Heart, Book } from 'lucide-react';
-import { useTasksDB, Task, Category } from '@/hooks/useTasksDB';
+import { Task, Category } from '@/hooks/useTasksDB';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -30,6 +30,8 @@ interface TaskCardProps {
   task: Task;
   index: number;
   categories: Category[];
+  onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onDeleteTask: (taskId: string) => Promise<void>;
 }
 
 const iconMap: Record<string, React.ElementType> = {
@@ -67,8 +69,7 @@ const statusConfig = {
   },
 };
 
-export const TaskCard = ({ task, index, categories }: TaskCardProps) => {
-  const { updateTask, deleteTask } = useTasksDB();
+export const TaskCard = ({ task, index, categories, onUpdateTask, onDeleteTask }: TaskCardProps) => {
   const { toast } = useToast();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -80,7 +81,7 @@ export const TaskCard = ({ task, index, categories }: TaskCardProps) => {
   const CategoryIcon = category ? iconMap[category.icon] || Target : Target;
 
   const handleStatusChange = async (newStatus: TaskStatus) => {
-    await updateTask(task.id, { status: newStatus });
+    await onUpdateTask(task.id, { status: newStatus });
     toast({
       title: "Status Updated",
       description: `Task marked as ${newStatus.replace('-', ' ')}`,
@@ -89,7 +90,7 @@ export const TaskCard = ({ task, index, categories }: TaskCardProps) => {
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    await deleteTask(task.id);
+    await onDeleteTask(task.id);
     setIsDeleting(false);
     setIsDeleteDialogOpen(false);
     toast({
@@ -100,7 +101,7 @@ export const TaskCard = ({ task, index, categories }: TaskCardProps) => {
   };
 
   const handleSaveEdit = async (updates: Partial<Task>) => {
-    await updateTask(task.id, updates);
+    await onUpdateTask(task.id, updates);
     toast({
       title: "Task Updated",
       description: "Your changes have been saved",
