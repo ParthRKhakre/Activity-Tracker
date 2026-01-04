@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, Settings2 } from 'lucide-react';
 import { useTasksDB } from '@/hooks/useTasksDB';
 import { TaskCard } from './TaskCard';
 import { TaskCreationModal } from './TaskCreationModal';
+import { CategoryManagementModal } from '@/components/categories/CategoryManagementModal';
 import { Button } from '@/components/ui/button';
 
 export const TaskList = () => {
-  const { tasks, categories, loading, addTask, updateTask, deleteTask } = useTasksDB();
+  const { tasks, categories, loading, addTask, updateTask, deleteTask, addCategory, updateCategory, deleteCategory } = useTasksDB();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [currentDate] = useState(() => new Date().toISOString().split('T')[0]);
   
   const tasksForDate = useMemo(() => 
@@ -51,10 +53,20 @@ export const TaskList = () => {
             {dailyEntry.completedCount} of {dailyEntry.totalCount} tasks completed
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add Task
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsCategoryModalOpen(true)} 
+            className="flex items-center gap-2"
+          >
+            <Settings2 className="w-4 h-4" />
+            Categories
+          </Button>
+          <Button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Task
+          </Button>
+        </div>
       </div>
 
       {/* Progress Bar */}
@@ -136,6 +148,16 @@ export const TaskList = () => {
         categories={categories}
         currentDate={currentDate}
         onAddTask={addTask}
+      />
+
+      {/* Category Management Modal */}
+      <CategoryManagementModal
+        open={isCategoryModalOpen}
+        onOpenChange={setIsCategoryModalOpen}
+        categories={categories}
+        onAddCategory={addCategory}
+        onUpdateCategory={updateCategory}
+        onDeleteCategory={deleteCategory}
       />
     </motion.div>
   );
