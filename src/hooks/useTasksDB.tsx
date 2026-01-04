@@ -239,6 +239,56 @@ export const useTasksDB = () => {
     }]);
   };
 
+  const updateCategory = async (categoryId: string, updates: Partial<Category>) => {
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from('categories')
+      .update({
+        name: updates.name,
+        color: updates.color,
+        icon: updates.icon,
+      })
+      .eq('id', categoryId);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update category",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setCategories(prev => prev.map(c => 
+      c.id === categoryId ? { ...c, ...updates } : c
+    ));
+  };
+
+  const deleteCategory = async (categoryId: string) => {
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', categoryId);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setCategories(prev => prev.filter(c => c.id !== categoryId));
+    // Also clear category_id from tasks that used this category
+    setTasks(prev => prev.map(t => 
+      t.category_id === categoryId ? { ...t, category_id: undefined } : t
+    ));
+  };
+
   return {
     tasks,
     categories,
@@ -248,6 +298,8 @@ export const useTasksDB = () => {
     deleteTask,
     getTasksForDate,
     addCategory,
+    updateCategory,
+    deleteCategory,
     refetch: async () => {
       await fetchCategories();
       await fetchTasks();
